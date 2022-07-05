@@ -20,6 +20,9 @@ code {
   overflow: auto;
   height: 500px;
 }
-.bg-blue{
-  background-color: lightblue;
+.bg-green{
+  background-color: lightgreen;
+}
+.pointer{
+  cursor: pointer;
 }

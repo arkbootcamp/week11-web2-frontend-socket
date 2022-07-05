@@ -1,38 +1,76 @@
-
 import React, { useState } from "react";
+import axios from "axios";
+import io from "socket.io-client";
 
-import {useNavigate} from 'react-router-dom'
+import { useNavigate } from "react-router-dom";
 
-function Login() {
-  const [username, setUsername] = useState("");
-  const [group, setGroup] = useState("");
-  const navigate = useNavigate()
+function Login({ setSocket }) {
+  const [formLogin, setFormLogin] = useState({
+    email: "",
+    password: "",
+  });
+  const navigate = useNavigate();
 
-//   useEffect(() => {
-//     
-//   }, []);
+  //   useEffect(() => {
+  //
+  //   }, []);
+  const handleChange = (e) => {
+    setFormLogin({
+      ...formLogin,
+      [e.target.name]: e.target.value,
+    });
+  };
 
-  const handleLogin = () => {
-    navigate(`/room?username=${username}&group=${group}`)
+  const handleLogin = (e) => {
+    e.preventDefault();
+    axios
+      .post("http://localhost:4000/v1/users/login", formLogin)
+      .then((res) => {
+        const respData = res.data.data;
+        localStorage.setItem("token", respData.token);
+        localStorage.setItem("refreshToken", respData.refreshToken);
+        const resultSocket = io("http://localhost:4000", {
+          query:{
+            token: respData.token
+          }
+        });
+        setSocket(resultSocket);
+        navigate('/room')
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+    // navigate(`/room?username=${username}&group=${group}`)
   };
   return (
     <div>
-      <ul>
-        <li>
-          <input type="text" placeholder="username" onChange={(e)=>setUsername(e.target.value)} />
-        </li>
-        <li>
-          <select name="group" value={group} id="group" onChange={(e)=>setGroup(e.target.value)}>
-            <option value=""> pilih</option>
-            <option value="php">php</option>
-            <option value="javascript">javascript</option>
-            <option value="golang">golang</option>
-          </select>
-        </li>
-        <li>
-          <button onClick={handleLogin}>login</button>
-        </li>
-      </ul>
+      <form onSubmit={handleLogin}>
+        <ul>
+          <li>
+            <input
+              type="email"
+              name="email"
+              id="email"
+              placeholder="email"
+              value={formLogin.email}
+              onChange={handleChange}
+            />
+          </li>
+          <li>
+            <input
+              type="password"
+              name="password"
+              id="password"
+              placeholder="password"
+              value={formLogin.password}
+              onChange={handleChange}
+            />
+          </li>
+          <li>
+            <button type="submit">login</button>
+          </li>
+        </ul>
+      </form>
     </div>
   );
 }

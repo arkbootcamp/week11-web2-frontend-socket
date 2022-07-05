@@ -1,64 +1,89 @@
+import axios from "axios";
 import React, { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import io from "socket.io-client";
-import ScrollToBottom from 'react-scroll-to-bottom';
-const ChatRoom = () => {
-  const [socket, setSocket] = useState(null);
-  const [searcParams, setSearchParams] = useSearchParams();
-  const [username, setUsername] = useState("");
-  const [group, setGroup] = useState("");
-  const [message, setMessage] = useState("");
+import ScrollToBottom from "react-scroll-to-bottom";
+const ChatRoom = ({ socket }) => {
   const [messages, setMessages] = useState([]);
+  const [message, setMessage] = useState("");
+  const [friends, setFriends] = useState([]);
+  const [friend, setFriend] = useState({});
 
   useEffect(() => {
-    const resultSocket = io("http://localhost:4000");
-    setSocket(resultSocket);
-    resultSocket.emit("inisialRoom", { room: searcParams.get("group"), username: searcParams.get("username") });
-    setUsername(searcParams.get("username"));
-    setGroup(searcParams.get("group"));
+    const token = localStorage.getItem('token')
+    axios.get("http://localhost:4000/v1/users/", {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }).then((res) => {
+      const users = res.data.data;
+      setFriends(users);
+    });
   }, []);
 
-  useEffect(() => {
-    if (socket) {
-      socket.off("newMessage");
-      socket.on("newMessage", (data) => {
-        setMessages((current) => [...current, data]);
-        console.log("data");
-      });
-      console.log("socket");
-      socket.on('notifAdmin', (data)=>{
-        setMessages((current) => [...current, data]);
+  useEffect(()=>{
+    if(socket){
+      socket.off('newMessage')
+      socket.on('newMessage', (message)=>{
+        setMessages((current)=>[...current, message])
+        console.log(message);
       })
     }
-  }, [socket]);
+    
+  },[socket])
+
+  useEffect(()=>{
+    const token = localStorage.getItem('token')
+    axios.get(`http://localhost:4000/v1/messages/${friend.id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }).then((res) => {
+      const messages = res.data.data;
+      setMessages(messages);
+    });
+  },[friend])
+
+
   const handleSendMessage = () => {
-    console.log("handleSendMessage");
-    const dataMessage = {
-      sender: username,
-      message: message,
-      room: group,
-    };
-    socket.emit("sendMessage", dataMessage);
-    setMessage("");
+    if (socket && message) {
+      socket.emit(
+        "sendMessage",
+        {
+          idReceiver: friend.id,
+          messageBody: message,
+        },
+        (message) => {
+          setMessages((current) => [...current, message]);
+        }
+      );
+    }
+    setMessage('')
   };
+  const chooseFriend = (friend)=>{
+    setFriend(friend)
+  } 
   return (
     <div className="container">
+      <h4>halaman chat room</h4>
       <div className="row">
         <div className="col-md-4">
-          <h3>group: {group} </h3>
+          <ul className="list-group">
+            {friends.map((item)=>(
+              <li className="list-group-item pointer" onClick={()=>chooseFriend(item)}>{item.fullname}</li>
+            ))}
+          </ul>
         </div>
         <div className="col-md-8">
           <div className="wrapper-chat">
             <ul className="list-group">
-                <ScrollToBottom className="scrool-buttom">
-              {messages.map((item) => (
-                <li className={`list-group-item ${item.sender  === username  ? 'bg-blue': ''}`}>
-                  <h6>{item.sender}</h6>
-                  <p>
-                    {item.message} ({item.date})
-                  </p>
-                </li>
-              ))}
+              <ScrollToBottom className="scrool-buttom">
+              <li class="list-group-item active" aria-current="true">{friend.fullname ? friend.fullname : 'pilih teman'}</li>
+                {messages.map((item) => (
+                  <li className={`list-group-item ${item.receiver_id  === friend.id ? 'bg-green': '' }`}>
+                    <p>
+                      {item.message} - {item.created_at}
+                    </p>
+                  </li>
+                ))}
               </ScrollToBottom>
             </ul>
           </div>
